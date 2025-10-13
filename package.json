@@ -1,17 +1,12 @@
 {
-  "name": "esmodule-template-vite",
-  "private": true,
-  "version": "0.0.0",
+  "name": "mpsz-parse",
+  "version": "1.0.0",
   "type": "module",
   "files": [
-    "dist",
-    "index.d.ts"
+    "dist"
   ],
-  "types": "./index.d.ts",
-  "exports": {
-    "types": "./index.d.ts",
-    "import": "./dist/counter.js"
-  },
+  "types": "./dist/index.d.ts",
+  "exports": "./dist/index.js",
   "scripts": {
     "prepare": "lefthook install",
     "build": "vite build",
