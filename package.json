@@ -8,8 +8,12 @@
   "publishConfig": {
     "access": "public"
   },
-  "types": "./dist/index.d.ts",
-  "exports": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "prepare": "lefthook install",
     "build": "vite build",

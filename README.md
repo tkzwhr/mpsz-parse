@@ -3,51 +3,70 @@ mpsz-parse
 
 This is a parser of mahjong MPSZ format.
 
-## Getting Started
+## Installation
 
 ```shell
-pnpm i
-pnpm run build
+npm install @tkzwhr/mpsz-parse
 ```
 
-### Testing
+## Usage
 
-```shell
-pnpm run test
+```typescript
+import parse from '@tkzwhr/mpsz-parse';
+
+const pais = parse('123m');
+// pais = [ { type: 'single', tile: '1m' }, { type: 'single', tile: '2m' }, { type: 'single', tile: '3m' } ];
 ```
 
-with coverage:
+## API
 
-```shell
-pnpm run coverage
-```
+### parse(str: string): Pai[]
 
-### Linting
+Parses an MPSZ format string into an array of tile objects.
 
-> [!NOTE]
-> This is done automatically when you commit to git, so you normally don't need to run it.
-
-```shell
-pnpm run check
-```
+- **str**: The MPSZ format string to parse.
+- **returns**: An array of parsed `Pai` objects. A `Pai` can be an object representing a single tile, a meld (Chi, Peng, Kan, etc.), or a spacer.
 
 ## Format specification
 
 Based on: [【MPSZ拡張表記案】麻雀のMPSZ表記の拡張を考えてみる](https://note.com/yuarasino/n/n1ba95bf3b618)
 
-| Type         | Format (Regexp)   | e.g.                                                                            |
-|--------------|-------------------|---------------------------------------------------------------------------------|
-| Shu Pai      | `\d+[mps]`        | `123m`           => `["1m","2m","3m"]`                                          |
-| Zi Pai       | `[1-7]+z`         | `111z`           => `["1z","1z","1z"]`                                          |
-| Chi          | `<Three:->[mps]`  | `12-3m`, `2-13m` => `[{type:"chi",tiles:["2m","1m","3m"]}]`                     |
-| Peng         | `<Three:->[mpsz]` | `11-1z`          => `[{type:"peng",pos:2,tiles:["1z","1z","1z"]}]`              |
-| Da Ming Gang | `<Four:->[mpsz]`  | `111-1z`         => `[{type:"da-ming-gang",pos:3,tiles:["1z","1z","1z","1z"]}]` |
-| Jia Gang     | `<Four:=>[mpsz]`  | `1=111z`         => `[{type:"jia-gang",pos:1,tiles:["1z","1z","1z","1z"]}]`     |
-| Ang Gang     | `\d{4}\+[mpsz]`   | `1111+z`         => `[{type:"an-gang",tiles:["0x","1z","1z","0x"]}]`            |
-| Back         | `0x`              | `0x`             => `["0x"]`                                                    |
-| Space        | `,`               | `,`              => `[null]`                                                    |
+> [!NOTE]
+> - `<TILE>` means `/\d[mpsz]/`.
+> - For "consecutive" checks and "same" checks, `0` is treated as `5`.
+> - If the suit is 'z' (honor tiles), only numbers 1-7 are allowed.
 
-```jsregexp
-<Three:`X`> = \d`X`\d{2}|\d{2}`X`\d|\d{3}`X`
-<Four:`X`> = \d`X`\d{3}|\d{2}`X`\d{2}|\d{3}`X`\d|\d{4}`X`
-```
+- Shu pai
+  - input: `/\d+[mps]/`
+  - output: `{ type: "single", tile: <TILE> }[]`
+- Zi pai
+  - input: `/[1-7]+z/`
+  - output: `{ type: "single", tile: <TILE> }[]`
+- Reversed pai
+  - input: `/0+x/`
+  - output: `{ type: "single", tile: "0x" }[]`
+- Chi
+  - input: `(\d{1}-\d{2}|\d{2}-\d{1}|\d{3}-)[mps]`
+    - The three numbers must be consecutive.
+  - output: `{ type: "chi", tiles: [<TILE>, <TILE>, <TILE>] }`
+  - note: The number before the hyphen is moved to the beginning of the `tiles` array, regardless of its original position.
+- Peng
+  - input: `(\d{1}-\d{2}|\d{2}-\d{1}|\d{3}-)[mpsz]`
+    - The three numbers must be the same.
+  - output: `{ type: "peng", pos: /[0-2]/, tiles: [<TILE>, <TILE>, <TILE>] }`
+- Gang (Da ming gang)
+  - input: `(\d{1}-\d{3}|\d{2}-\d{2}|\d{3}-\d{1}|\d{4}-\d)[mpsz]`
+    - The four numbers must be the same.
+  - output: `{ type: "da-ming-gang", pos: /[0-3]/, tiles: [<TILE>, <TILE>, <TILE>, <TILE>] }`
+- Gang (Jia gang)
+  - input: `(\d{1}=\d{3}|\d{2}=\d{2}|\d{3}=\d{1})[mpsz]`
+    - The four numbers must be the same.
+  - output: `{ type: "jia-gang", pos: /[0-2]/, tiles: [<TILE>, <TILE>, <TILE>, <TILE>] }`
+- Gang (An gang)
+  - input: `\d{4}\+[mpsz]`
+    - The four numbers must be the same.
+    - In the output, the second and third numbers are used.
+  - output: `{ type: "an-gang", tiles: ["0x", <TILE>, <TILE>, "0x"] }`
+- Spacer
+  - input: `,`
+  - output: `{ type: "spacer" }`

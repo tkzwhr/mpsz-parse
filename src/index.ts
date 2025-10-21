@@ -1,4 +1,4 @@
-export type Pai =
+export type Tile =
   | {
       type: "single";
       tile: string;
@@ -35,7 +35,7 @@ const JIA_GANG_REGEX = /^(\d{1,3})=(\d{1,3})([mpsz])$/;
 const DA_MING_GANG_REGEX = /^(\d{1,3})-(\d{1,3})([mpsz])$/;
 const CHI_PENG_REGEX = /^(\d{1,3})-(\d{0,2})([mpsz])$/;
 
-function parseAnGang(block: string): Pai | null {
+function parseAnGang(block: string): Tile | null {
   const meld = parseMeld(block, AN_GANG_REGEX, 4, "an-gang");
   if (!meld) return null;
 
@@ -58,7 +58,7 @@ function parseMeld(
   regex: RegExp,
   expectedLength: 3 | 4,
   type: "jia-gang" | "da-ming-gang" | "peng" | "an-gang",
-): Extract<Pai, { pos: number }> | null {
+): Extract<Tile, { pos: number }> | null {
   const match = block.match(regex);
   if (!match) {
     return null;
@@ -77,6 +77,16 @@ function parseMeld(
     type === "an-gang" ? part1.split("") : (part1 + part2).split("");
   const tiles = allDigits.map((digit) => `${digit}${suit}`);
 
+  // 字牌(z)の場合、8, 9, 0 は無効
+  if (suit === "z") {
+    const hasInvalidHonorTile = allDigits.some((d) =>
+      ["8", "9", "0"].includes(d),
+    );
+    if (hasInvalidHonorTile) {
+      return null;
+    }
+  }
+
   const numericValues = allDigits.map((d) => (d === "0" ? 5 : parseInt(d, 10)));
   const firstValue = numericValues[0];
   const allSame = numericValues.every((v) => v === firstValue);
@@ -85,7 +95,7 @@ function parseMeld(
     return null;
   }
 
-  return { type, pos, tiles } as Extract<Pai, { pos: number }>;
+  return { type, pos, tiles } as Extract<Tile, { pos: number }>;
 }
 
 const parseJiaGang = (block: string) =>
@@ -95,7 +105,7 @@ const parseDaMingGang = (block: string) =>
 const parsePeng = (block: string) =>
   parseMeld(block, CHI_PENG_REGEX, 3, "peng");
 
-function parseChi(block: string): Pai | null {
+function parseChi(block: string): Tile | null {
   const chiMatch = block.match(CHI_PENG_REGEX);
   if (!chiMatch) {
     return null;
@@ -138,27 +148,27 @@ function parseChi(block: string): Pai | null {
 }
 
 /**
- * Parses a string representing Mahjong tiles and melds into an array of Pai objects.
+ * Parses a string representing Mahjong tiles and melds into an array of Tile objects.
  *
  * The string format uses a compact notation:
  * - Simple tiles: Digits followed by a suit character (e.g., "123m").
- * - Suits: 'm' (manzu), 'p' (pinzu), 's' (souzu), 'z' (jihai).
+ * - Suits: 'm' (manzi), 'p' (pinzi), 's' (sozi), 'z' (zipai).
  * - Red fives: Represented by the digit '0'.
  * - Melds (Fulu):
- *   - Chi (Chow): "2-34m" (2m was called to complete the 2-3-4 sequence).
- *   - Peng (Pung): "22-2m" (a 2m was called from the player opposite).
- *   - Da-ming-gang (Open Kong): "33-33m".
- *   - Jia-gang (Added Kong): "222=2m".
- *   - An-gang (Concealed Kong): "1111+m".
+ *   - Chi: "2-34m" (2m was called to complete the 2-3-4 sequence).
+ *   - Peng: "22-2m" (a 2m was called from the player opposite).
+ *   - Da-ming-gang: "33-33m".
+ *   - Jia-gang: "222=2m".
+ *   - An-gang: "1111+m".
  * - Sections: Commas (`,`) separate groups of tiles, represented as `null` in the output array.
  *
  * @param str The string to parse, representing tiles and melds.
- * @returns An array of `Pai` objects, which can be a string for a tile, a Fulu object for a meld, or `null` for a section separator.
+ * @returns An array of `Tile` objects, which can be a string for a tile, a Fulu object for a meld, or `null` for a section separator.
  * @example
  * // Returns ["1m", "2m", { type: "chi", tiles: ["3p", "4p", "5p"] }, null, { type: "an-gang", tiles: ["0x", "1z", "1z", "0x"] }]
  * parse("12m3-45p,1111+z")
  */
-export function parse(str: string): Pai[] {
+export default function parse(str: string): Tile[] {
   const parsers = [
     parseAnGang,
     parseJiaGang,
@@ -167,12 +177,12 @@ export function parse(str: string): Pai[] {
     parsePeng,
   ];
 
-  const parsed: Pai[] = [];
+  const parsed: Tile[] = [];
   const sections = str.split(",");
   for (const section of sections) {
     const blocks = section.split(/(?<=[mpszx])/).filter(Boolean);
     for (const block of blocks) {
-      let fulu: Pai | null = null;
+      let fulu: Tile | null = null;
       for (const parser of parsers) {
         fulu = parser(block);
         if (fulu) break;
@@ -185,7 +195,7 @@ export function parse(str: string): Pai[] {
         const digits = block.slice(0, -1);
         const tiles = digits
           .split("")
-          .map((digit): Pai => ({ type: "single", tile: `${digit}${suit}` }));
+          .map((digit): Tile => ({ type: "single", tile: `${digit}${suit}` }));
         parsed.push(...tiles);
       }
     }
